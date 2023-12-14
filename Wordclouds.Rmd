@@ -1,0 +1,108 @@
+---
+title: "Word Cloud tutorial for Laetitia"
+output:
+  html_document:
+    df_print: paged
+  html_notebook: default
+---
+
+## Word Clouds (nuages des mots)
+
+Ceci contient un script écrit en R qui produira un nuage de mots à partir d’un texte. J’ai également modifié le script pour que le nuage de mots fonctionne mieux avec les textes français, mais il devrait également fonctionner pour les textes en anglais. 
+
+```{r SetUp}
+# Choose a CRAN mirror URL based on your location
+cran_mirror <- "https://mirror.csclub.uwaterloo.ca/CRAN/"
+
+# Set the chosen CRAN mirror
+options(repos = c(CRAN = cran_mirror))
+
+# Install required packages
+install.packages(c("tm", "wordcloud", "SnowballC"))
+
+# Load libraries
+library(tm) # text analysis
+library(wordcloud) # plotting the wordcloud
+library(SnowballC) # word stemming algorithms for collapsing words to a common root
+library(readr) # read in CSV files
+```
+
+```{r Get Text}
+txt <-  read_file(url("https://raw.githubusercontent.com/ialifinaritra/Text_Summarization/main/example.txt"))
+
+str(txt) #one long character vector (line)
+
+# You would store all of your text into a corpus
+space_corpus = VCorpus(VectorSource(txt))
+```
+
+Le bloc de code ci-dessous contient des fonctions qui peuvent être modifiées pour répondre à tes besoins, et certaines fonctions intégrées du packet `tm`. 
+
+Il y a aussi une ligne qui imprimera ton nouveau corpus -- ou ensemble de données nettoyé.  
+
+
+```{r Format and clean the text}
+# --- Custom function
+
+# if you know there will be funny characters in the dataset, add them to this function
+toSpace <- function(x) {
+  x <- tolower(x)  # Convert to lowercase
+  x <- gsub("—", " ", x) #en dash
+  x <- gsub("-", " ", x) #hyphen
+  x <- gsub("°", " ", x) #degree
+  return(x)
+}
+
+space <- tm_map(space_corpus, content_transformer(toSpace))
+
+# --- Built-in TM functions
+# Remove conjunctions etc.
+space <- tm_map(space, removeWords, stopwords("french")) 
+# You can change this line to "english" and you can also specify your own stop words if needed
+
+# Remove suffixes to the common 'stem'
+  ### Don't use this one !!
+    # space <- tm_map(space, stemDocument)
+# Remove commas etc.
+space <- tm_map(space, removePunctuation)
+# Remove numbers
+space <- tm_map(space, removeNumbers)
+# Strip unnecessary whitespace
+space <- tm_map(space, stripWhitespace)
+
+# To see the actual changed text
+spc <- tm_map(space, PlainTextDocument)
+spc[["character(0)"]][["content"]]
+```
+Ci-dessous est le morceau de code où tu vas réellement créer l’image de nuage de mots. 
+
+Voici un document qui demontre tous les options: https://cran.r-project.org/web/packages/wordcloud/wordcloud.pdf
+
+### Voici un tableau avec les arguments pour le fonction `wordcloud` ###
+
+| Argument   | Description   |
+| --------------- | ---------------------------------------------------------------------------------------------------------------- |
+| words   | Les mots.   |
+| freq   | Leurs fréquences.   |
+| scale | Un vecteur de longueur 2 indiquant la plage de la taille des mots.   |
+| min.freq   | Les mots dont la fréquence est inférieure à min.freq ne seront pas tracés.   |
+| max.words   | Nombre maximum de mots à tracer. Termes les moins fréquents supprimés.   |
+| random.order   | Tracer les mots dans un ordre aléatoire. Si faux, ils seront tracés dans une fréquence décroissante.   |
+| random.color   | Choisir les couleurs au hasard parmi les couleurs. Si faux, la couleur est choisie en fonction de la fréquence.   |
+| rot.per   | Proportion de mots avec une rotation de 90 degrés.   |
+| colors  | Colorier les mots du moins au plus fréquent.   |
+| ordered.colors  | Si vrai, les couleurs sont assignées aux mots dans l’ordre.   |
+| use.r.layout   | Si faux, alors le code C++ est utilisé pour la détection de collision, sinon, R est utilisé. |
+
+
+```{r Plot the Cloud !}
+wordcloud(space,
+scale=c(3.5, 0.5),     # Set min and max scale
+max.words=100,      # Set top n words
+random.order=FALSE, # Words will be bigger in the middle if they have more mentions
+rot.per=0.0,       # % of vertical words
+min.freq = 2,      # Words mentioned less than once will not be plotted
+use.r.layout=FALSE, # Use C++ collision detection
+colors=brewer.pal(8, "Dark2"))
+```
+
